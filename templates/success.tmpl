@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="stylesheet" href="/css/main.css">
+  </head>
+  <body>
+    <div class="wrapper">
+      {{if .seen}}
+          <h1>Welcome back '{{ .email }}'!</h1>
+      {{else}}
+          <h1>You are new, '{{ .email }}'!</h1>
+      {{end}}
+
+      <p>
+        <a href="/ok/internal">Come on in</a>
+      </p>
+    </div>
+  </body>
+</html>

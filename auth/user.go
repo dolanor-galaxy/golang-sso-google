@@ -1,6 +1,6 @@
-package structs
+package auth
 
-// User is a retrieved and authentiacted user.
+// User is a retrieved and authenticated user.
 type User struct {
 	Sub           string `json:"sub"`
 	Name          string `json:"name"`

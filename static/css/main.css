@@ -1,13 +1,10 @@
-body {
-    background-image: url("/img/background.png");
-    background-color: #cccccc;
+body, html {
+    margin: 0;
+    padding: 0;
 }
 
 h1 {
     text-align: center;
-    /*color: green;*/
-    /*text-decoration: overline;*/
-    text-shadow: 2px 2px #ff0000;
 }
 
 button {
@@ -18,9 +15,11 @@ button {
     text-align: center;
     text-decoration: none;
     display: inline-block;
-    font-size: 16px;
-    border-radius: 12px;
-    position: absolute;
-    top: 45%;
-    left: 42%;
+    font-size: large;
+}
+
+.wrapper {
+    width: 90%;
+    margin: 10% auto;
+    text-align: center;
 }

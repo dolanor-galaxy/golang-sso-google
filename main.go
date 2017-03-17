@@ -1,15 +1,16 @@
 package main
 
 import (
-	"github.com/Skarlso/goquestwebapp/handlers"
-	"github.com/Skarlso/goquestwebapp/middleware"
+	"github.com/jamesonwilliams/golang-sso-google/auth"
+	"github.com/jamesonwilliams/golang-sso-google/handlers"
+
 	"github.com/gin-gonic/contrib/sessions"
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
 	router := gin.Default()
-	store := sessions.NewCookieStore([]byte(handlers.RandToken(64)))
+	store := sessions.NewCookieStore([]byte(handlers.RandomToken(64)))
 	store.Options(sessions.Options{
 		Path:   "/",
 		MaxAge: 86400 * 7,
@@ -25,10 +26,10 @@ func main() {
 	router.GET("/login", handlers.LoginHandler)
 	router.GET("/auth", handlers.AuthHandler)
 
-	authorized := router.Group("/battle")
-	authorized.Use(middleware.AuthorizeRequest())
+	authorized := router.Group("/ok")
+	authorized.Use(auth.AuthorizeRequest())
 	{
-		authorized.GET("/field", handlers.FieldHandler)
+		authorized.GET("/internal", handlers.InternalPageHandler)
 	}
 
 	router.Run("127.0.0.1:9090")

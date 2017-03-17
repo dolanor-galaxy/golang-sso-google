@@ -9,128 +9,148 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/Skarlso/goquestwebapp/database"
-	"github.com/Skarlso/goquestwebapp/structs"
+	"github.com/jamesonwilliams/golang-sso-google/auth"
+	"github.com/jamesonwilliams/golang-sso-google/database"
+
 	"github.com/gin-gonic/contrib/sessions"
 	"github.com/gin-gonic/gin"
+
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )
 
-var cred Credentials
-var conf *oauth2.Config
+const landingPageTemplate = "index.tmpl"
+const successTemplate = "success.tmpl"
+const internalTemplate = "internal.tmpl"
+const errorTemplate = "error.tmpl"
+const authTemplate = "auth.tmpl"
 
-// Credentials which stores google ids.
-type Credentials struct {
-	Cid     string `json:"cid"`
-	Csecret string `json:"csecret"`
+const credentialsStore = "./credentials.json"
+const redirectUrl = "http://127.0.0.1:9090/auth"
+const googleOathUserInfoUrl = "https://www.googleapis.com/oauth2/v3/userinfo"
+
+const sessionKey = "user-id"
+const sessionStateKey = "state"
+
+// You have to select your own scope from here ->
+// https://developers.google.com/identity/protocols/googlescopes#google_sign-in
+var googleAuthScopes = []string{
+	"https://www.googleapis.com/auth/userinfo.email",
 }
 
-// RandToken generates a random @l length token.
-func RandToken(l int) string {
-	b := make([]byte, l)
-	rand.Read(b)
-	return base64.StdEncoding.EncodeToString(b)
+var credentials Credentials
+var config *oauth2.Config
+
+// Credentials stores Google API developer credentials.
+type Credentials struct {
+	ClientId     string `json:"clientId"`
+	ClientSecret string `json:"clientSecret"`
+}
+
+// RandomToken generates a random @length length token.
+func RandomToken(length int) string {
+	bytes := make([]byte, length)
+	rand.Read(bytes)
+
+	return base64.StdEncoding.EncodeToString(bytes)
 }
 
 func getLoginURL(state string) string {
-	return conf.AuthCodeURL(state)
+	return config.AuthCodeURL(state)
 }
 
 func init() {
-	file, err := ioutil.ReadFile("./creds.json")
+	file, err := ioutil.ReadFile(credentialsStore)
 	if err != nil {
-		log.Printf("File error: %v\n", err)
+		log.Printf("Error reading file %s: %v\n", credentialsStore, err)
 		os.Exit(1)
 	}
-	json.Unmarshal(file, &cred)
+	json.Unmarshal(file, &credentials)
 
-	conf = &oauth2.Config{
-		ClientID:     cred.Cid,
-		ClientSecret: cred.Csecret,
-		RedirectURL:  "http://127.0.0.1:9090/auth",
-		Scopes: []string{
-			"https://www.googleapis.com/auth/userinfo.email", // You have to select your own scope from here -> https://developers.google.com/identity/protocols/googlescopes#google_sign-in
-		},
-		Endpoint: google.Endpoint,
+	config = &oauth2.Config{
+		ClientID:     credentials.ClientId,
+		ClientSecret: credentials.ClientSecret,
+		RedirectURL:  redirectUrl,
+		Scopes:       googleAuthScopes,
+		Endpoint:     google.Endpoint,
 	}
 }
 
 // IndexHandler handels /.
-func IndexHandler(c *gin.Context) {
-	c.HTML(http.StatusOK, "index.tmpl", gin.H{})
+func IndexHandler(context *gin.Context) {
+	context.HTML(http.StatusOK, landingPageTemplate, gin.H{})
 }
 
 // AuthHandler handles authentication of a user and initiates a session.
-func AuthHandler(c *gin.Context) {
+func AuthHandler(context *gin.Context) {
 	// Handle the exchange code to initiate a transport.
-	session := sessions.Default(c)
-	retrievedState := session.Get("state")
-	queryState := c.Request.URL.Query().Get("state")
+	session := sessions.Default(context)
+	retrievedState := session.Get(sessionStateKey)
+	queryState := context.Request.URL.Query().Get(sessionStateKey)
 	if retrievedState != queryState {
 		log.Printf("Invalid session state: retrieved: %s; Param: %s", retrievedState, queryState)
-		c.HTML(http.StatusUnauthorized, "error.tmpl", gin.H{"message": "Invalid session state."})
+		context.HTML(http.StatusUnauthorized, errorTemplate, gin.H{"message": "Invalid session state."})
 		return
 	}
-	code := c.Request.URL.Query().Get("code")
-	tok, err := conf.Exchange(oauth2.NoContext, code)
+	code := context.Request.URL.Query().Get("code")
+	tok, err := config.Exchange(oauth2.NoContext, code)
 	if err != nil {
 		log.Println(err)
-		c.HTML(http.StatusBadRequest, "error.tmpl", gin.H{"message": "Login failed. Please try again."})
+		context.HTML(http.StatusBadRequest, errorTemplate, gin.H{"message": "Login failed. Please try again."})
 		return
 	}
 
-	client := conf.Client(oauth2.NoContext, tok)
-	userinfo, err := client.Get("https://www.googleapis.com/oauth2/v3/userinfo")
+	client := config.Client(oauth2.NoContext, tok)
+	userinfo, err := client.Get(googleOathUserInfoUrl)
 	if err != nil {
 		log.Println(err)
-		c.AbortWithStatus(http.StatusBadRequest)
+		context.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
 	defer userinfo.Body.Close()
 	data, _ := ioutil.ReadAll(userinfo.Body)
-	u := structs.User{}
-	if err = json.Unmarshal(data, &u); err != nil {
+	user := auth.User{}
+	if err = json.Unmarshal(data, &user); err != nil {
 		log.Println(err)
-		c.HTML(http.StatusBadRequest, "error.tmpl", gin.H{"message": "Error marshalling response. Please try agian."})
+		context.HTML(http.StatusBadRequest, errorTemplate, gin.H{"message": "Error marshalling response. Please try agian."})
 		return
 	}
-	session.Set("user-id", u.Email)
+	session.Set(sessionKey, user.Email)
 	err = session.Save()
 	if err != nil {
 		log.Println(err)
-		c.HTML(http.StatusBadRequest, "error.tmpl", gin.H{"message": "Error while saving session. Please try again."})
+		context.HTML(http.StatusBadRequest, errorTemplate, gin.H{"message": "Error while saving session. Please try again."})
 		return
 	}
 	seen := false
 	db := database.MongoDBConnection{}
-	if _, mongoErr := db.LoadUser(u.Email); mongoErr == nil {
+	if _, mongoErr := db.LoadUser(user.Email); mongoErr == nil {
 		seen = true
 	} else {
-		err = db.SaveUser(&u)
+		err = db.SaveUser(&user)
 		if err != nil {
 			log.Println(err)
-			c.HTML(http.StatusBadRequest, "error.tmpl", gin.H{"message": "Error while saving user. Please try again."})
+			context.HTML(http.StatusBadRequest, errorTemplate, gin.H{"message": "Error while saving user. Please try again."})
 			return
 		}
 	}
-	c.HTML(http.StatusOK, "battle.tmpl", gin.H{"email": u.Email, "seen": seen})
+	context.HTML(http.StatusOK, successTemplate, gin.H{"email": user.Email, "seen": seen})
 }
 
 // LoginHandler handles the login procedure.
-func LoginHandler(c *gin.Context) {
-	state := RandToken(32)
-	session := sessions.Default(c)
-	session.Set("state", state)
+func LoginHandler(context *gin.Context) {
+	state := RandomToken(32)
+	session := sessions.Default(context)
+	session.Set(sessionStateKey, state)
 	log.Printf("Stored session: %v\n", state)
 	session.Save()
 	link := getLoginURL(state)
-	c.HTML(http.StatusOK, "auth.tmpl", gin.H{"link": link})
+	context.HTML(http.StatusOK, authTemplate, gin.H{"link": link})
 }
 
-// FieldHandler is a rudementary handler for logged in users.
-func FieldHandler(c *gin.Context) {
-	session := sessions.Default(c)
-	userID := session.Get("user-id")
-	c.HTML(http.StatusOK, "field.tmpl", gin.H{"user": userID})
+// InternalPageHandler is a rudimentary handler for logged in users.
+func InternalPageHandler(context *gin.Context) {
+	session := sessions.Default(context)
+	userId := session.Get(sessionKey)
+	context.HTML(http.StatusOK, internalTemplate, gin.H{"user": userId})
 }

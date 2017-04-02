@@ -28,6 +28,25 @@ procedure to setup a new project: [Google Developer Console][iam-creds].
 
 ## Dependencies
 
+Uses a DynamoDB table called `Users`. You can create this table with:
+
+    aws dynamodb \
+        --profile default \
+        --region us-west-2 \
+    create-table \
+        --table-name Users \
+        --key-schema \
+            AttributeName=email,KeyType=HASH \
+        --attribute-definitions \
+            AttributeName=email,AttributeType=S \
+        --provisioned-throughput \
+            ReadCapacityUnits=1,WriteCapacityUnits=1
+
+You will also need to arrange for AWS credentials that have sufficient
+permissions to read and write to that table to be in your environment.
+
+Easiest is to just put them in `~/.aws/config`.
+
 To gather all the libraries this project uses, simply execute from the
 root:
 
@@ -39,9 +58,9 @@ root:
     go get -v "gopkg.in/mgo.v2/bson"
     # etc.
 
-Additionally, install MongoDB:
+Or just:
 
-    sudo aptitude install mongodb-server
+    go get
 
 ## Running
 

@@ -17,6 +17,8 @@ import (
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
+
+	"net/http/httputil"
 )
 
 const landingPageTemplate = "index.tmpl"
@@ -25,12 +27,16 @@ const internalTemplate = "internal.tmpl"
 const errorTemplate = "error.tmpl"
 const authTemplate = "auth.tmpl"
 
-const credentialsStore = "./credentials.json"
 const redirectUrl = "http://127.0.0.1:9090/auth"
 const googleOathUserInfoUrl = "https://www.googleapis.com/oauth2/v3/userinfo"
 
 const sessionKey = "user-id"
 const sessionStateKey = "state"
+
+var db = database.DynamoDatabase{
+	Region:    "us-west-2",
+	TableName: "Users",
+}
 
 // You have to select your own scope from here ->
 // https://developers.google.com/identity/protocols/googlescopes#google_sign-in
@@ -38,14 +44,7 @@ var googleAuthScopes = []string{
 	"https://www.googleapis.com/auth/userinfo.email",
 }
 
-var credentials Credentials
 var config *oauth2.Config
-
-// Credentials stores Google API developer credentials.
-type Credentials struct {
-	ClientId     string `json:"clientId"`
-	ClientSecret string `json:"clientSecret"`
-}
 
 // RandomToken generates a random @length length token.
 func RandomToken(length int) string {
@@ -60,25 +59,13 @@ func getLoginURL(state string) string {
 }
 
 func init() {
-	file, err := ioutil.ReadFile(credentialsStore)
-	if err != nil {
-		log.Printf("Error reading file %s: %v\n", credentialsStore, err)
-		os.Exit(1)
-	}
-	json.Unmarshal(file, &credentials)
-
 	config = &oauth2.Config{
-		ClientID:     credentials.ClientId,
-		ClientSecret: credentials.ClientSecret,
+		ClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
+		ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
 		RedirectURL:  redirectUrl,
 		Scopes:       googleAuthScopes,
 		Endpoint:     google.Endpoint,
 	}
-}
-
-// IndexHandler handels /.
-func IndexHandler(context *gin.Context) {
-	context.HTML(http.StatusOK, landingPageTemplate, gin.H{})
 }
 
 // AuthHandler handles authentication of a user and initiates a session.
@@ -123,8 +110,7 @@ func AuthHandler(context *gin.Context) {
 		return
 	}
 	seen := false
-	db := database.MongoDBConnection{}
-	if _, mongoErr := db.LoadUser(user.Email); mongoErr == nil {
+	if _, dbErr := db.RetrieveUser(user.Email); dbErr == nil {
 		seen = true
 	} else {
 		err = db.SaveUser(&user)
@@ -134,7 +120,7 @@ func AuthHandler(context *gin.Context) {
 			return
 		}
 	}
-	context.HTML(http.StatusOK, successTemplate, gin.H{"email": user.Email, "seen": seen})
+	context.HTML(http.StatusOK, successTemplate, gin.H{"name": user.GivenName, "seen": seen, "picture": user.Picture})
 }
 
 // LoginHandler handles the login procedure.
@@ -148,9 +134,14 @@ func LoginHandler(context *gin.Context) {
 	context.HTML(http.StatusOK, authTemplate, gin.H{"link": link})
 }
 
-// InternalPageHandler is a rudimentary handler for logged in users.
-func InternalPageHandler(context *gin.Context) {
-	session := sessions.Default(context)
-	userId := session.Get(sessionKey)
-	context.HTML(http.StatusOK, internalTemplate, gin.H{"user": userId})
+func ReverseProxy(c *gin.Context) {
+	director := func(req *http.Request) {
+		r := c.Request
+		req = r
+		req.URL.Scheme = "http"
+		req.URL.Host = "localhost:9112"
+		req.URL.Path = "/"
+	}
+	proxy := &httputil.ReverseProxy{Director: director}
+	proxy.ServeHTTP(c.Writer, c.Request)
 }

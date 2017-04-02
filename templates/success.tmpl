@@ -6,10 +6,12 @@
   <body>
     <div class="wrapper">
       {{if .seen}}
-          <h1>Welcome back '{{ .email }}'!</h1>
+          <h1>Welcome back, {{ .name }}!</h1>
       {{else}}
-          <h1>You are new, '{{ .email }}'!</h1>
+          <h1>You are new, {{ .name }}!</h1>
       {{end}}
+
+      <img src="{{ .picture }}" />
 
       <p>
         <a href="/ok/internal">Come on in</a>

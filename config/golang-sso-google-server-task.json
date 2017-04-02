@@ -1,0 +1,40 @@
+{
+   "family" : "golang-sso-google",
+   "containerDefinitions" : [
+      {
+         "environment" : [
+            {
+               "value" : "",
+               "name" : "AWS_ACCESS_KEY_ID"
+            },
+            {
+               "value" : "",
+               "name" : "AWS_SECRET_ACCESS_KEY"
+            },
+            {
+               "value" : "us-west-2",
+               "name" : "AWS_REGION"
+            },
+            {
+                "value": "",
+                "name": "GOOGLE_CLIENT_ID"
+            },
+            {
+                "value": "",
+                "name": "GOOGLE_CLIENT_SECRET"
+            }
+         ],
+         "memory" : 100,
+         "name" : "golang-sso-google",
+         "image" : "jamesonwilliams/golang-sso-google",
+         "essential" : true,
+         "portMappings" : [
+            {
+               "hostPort" : 9090,
+               "containerPort" : 9090,
+               "protocol" : "tcp"
+            }
+         ]
+      }
+   ]
+}

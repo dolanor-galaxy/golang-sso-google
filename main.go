@@ -1,11 +1,11 @@
 package main
 
 import (
-	"github.com/jamesonwilliams/golang-sso-google/auth"
-	"github.com/jamesonwilliams/golang-sso-google/handlers"
-
 	"github.com/gin-gonic/contrib/sessions"
 	"github.com/gin-gonic/gin"
+
+	"github.com/jamesonwilliams/golang-sso-google/auth"
+	"github.com/jamesonwilliams/golang-sso-google/handlers"
 )
 
 func main() {
@@ -22,14 +22,13 @@ func main() {
 	router.Static("/img", "./static/img")
 	router.LoadHTMLGlob("templates/*")
 
-	router.GET("/", handlers.IndexHandler)
-	router.GET("/login", handlers.LoginHandler)
+	router.GET("/", handlers.LoginHandler)
 	router.GET("/auth", handlers.AuthHandler)
 
 	authorized := router.Group("/ok")
 	authorized.Use(auth.AuthorizeRequest())
 	{
-		authorized.GET("/internal", handlers.InternalPageHandler)
+		authorized.GET("/internal", handlers.ReverseProxy)
 	}
 
 	router.Run("127.0.0.1:9090")

@@ -74,7 +74,7 @@ Or just:
 ![Google Redirect][google-redirect]
 
 
-[iam-creds]: https://console.developers.google.com/iam-admin/projects
+[iam-creds]: https://console.developers.google.com/apis/credentials
 [login-button]: https://nosemaj.org/dl/login-button.png "Login button"
 [google-redirect]: https://nosemaj.org/dl/google-redirect.png "Google Redirect"
 

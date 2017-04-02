@@ -31,5 +31,5 @@ func main() {
 		authorized.GET("/internal", handlers.ReverseProxy)
 	}
 
-	router.Run("127.0.0.1:9090")
+	router.Run(":9090")
 }

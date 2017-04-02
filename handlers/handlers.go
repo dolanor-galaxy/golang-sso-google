@@ -27,7 +27,7 @@ const internalTemplate = "internal.tmpl"
 const errorTemplate = "error.tmpl"
 const authTemplate = "auth.tmpl"
 
-const redirectUrl = "http://127.0.0.1:9090/auth"
+const redirectUrl = "http://ec2-54-190-25-232.us-west-2.compute.amazonaws.com:9090/auth"
 const googleOathUserInfoUrl = "https://www.googleapis.com/oauth2/v3/userinfo"
 
 const sessionKey = "user-id"
@@ -139,7 +139,7 @@ func ReverseProxy(c *gin.Context) {
 		r := c.Request
 		req = r
 		req.URL.Scheme = "http"
-		req.URL.Host = "localhost:9112"
+        req.URL.Host = "ec2-54-190-25-232.us-west-2.compute.amazonaws.com:9112"
 		req.URL.Path = "/"
 	}
 	proxy := &httputil.ReverseProxy{Director: director}
